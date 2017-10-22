@@ -1,0 +1,133 @@
+unit system;
+
+interface
+
+{$define FPC_IS_SYSTEM}
+
+{$define FPC_HAS_FEATURE_SUPPORT}
+{$undef FPC_HAS_FEATURE_HEAP}
+{$undef FPC_HAS_FEATURE_INITFINAL}
+{$undef FPC_HAS_FEATURE_RTTI}
+{$undef FPC_HAS_FEATURE_CLASSES}
+{$undef FPC_HAS_FEATURE_EXCEPTIONS}
+{$undef FPC_HAS_FEATURE_EXITCODE}
+{$undef FPC_HAS_FEATURE_ANSISTRINGS}
+{$undef FPC_HAS_FEATURE_WIDESTRINGS}
+{$undef FPC_HAS_FEATURE_TEXTIO}
+{$undef FPC_HAS_FEATURE_CONSOLEIO}
+{$undef FPC_HAS_FEATURE_FILEIO}
+{$undef FPC_HAS_FEATURE_RANDOM}
+{$undef FPC_HAS_FEATURE_VARIANTS}
+{$undef FPC_HAS_FEATURE_OBJECTS}
+{$undef FPC_HAS_FEATURE_DYNARRAYS}
+{$undef FPC_HAS_FEATURE_THREADING}
+{$undef FPC_HAS_FEATURE_COMMANDARGS}
+{$undef FPC_HAS_FEATURE_PROCESSES}
+{$undef FPC_HAS_FEATURE_STACKCHECK}
+{$undef FPC_HAS_FEATURE_DYNLIBS}
+
+{ include system-independent routine headers }
+{$I systemh.inc}
+{$I sysosh.inc}
+
+const
+  LineEnding = #13#10;
+  LFNSupport = true;
+  DirectorySeparator = '\';
+  DriveSeparator = ':';
+  ExtensionSeparator = '.';
+  PathSeparator = ';';
+  AllowDirectorySeparators : set of char = ['\','/'];
+  AllowDriveSeparators : set of char = [':'];
+  { FileNameCaseSensitive is defined separately below!!! }
+  maxExitCode = 65535;
+  MaxPathLen = 260;
+  AllFilesMask = '*';
+  { Default filehandles }
+  UnusedHandle    : THandle = THandle(-1);
+  StdInputHandle  : THandle = 0;
+  StdOutputHandle : THandle = 0;
+  StdErrorHandle  : THandle = 0;
+  FileNameCaseSensitive : boolean = false;
+  CtrlZMarksEOF: boolean = true; (* #26 is considered as end of file *)
+  sLineBreak = LineEnding;
+  DefaultTextLineBreakStyle : TTextLineBreakStyle = tlbsCRLF;
+
+var
+{ C compatible arguments }
+  argc : longint;
+  argv : ppchar;
+
+  // Get string representation of l in Base-nary format at least Count long
+function BaseStr(l: LongWord; const Base,Count: Byte): String;
+// Write Value to port Port
+procedure WritePort(Port: Word; Value: Byte);
+// Read Value from port Port
+function ReadPort(Port: Word): Byte;
+
+implementation
+
+{$I system.inc}
+
+procedure system_exit;
+begin
+
+end;
+
+function fpc_truely_ansistr_unique(Var S : Pointer): Pointer;
+begin
+  fpc_truely_ansistr_unique:=s;
+end;
+
+function BaseStr(l: LongWord; const Base,Count: Byte): String;
+const
+  BaseTable: array [0..35] of Char = (
+    '0','1','2','3','4','5','6','7','8','9','A','B',
+    'C','D','E','F','G','H','I','J','K','L','M','N',
+    'O','P','Q','R','S','T','U','V','W','X','Y','Z'
+  );
+var
+  Buffer: array [0..255] of Char;
+  P: PChar;
+  i: Byte;
+begin
+  if Base in [2..36] then begin
+    P:=@Buffer[255];
+    P^:=#0;
+    i:=0;
+    repeat
+      Dec(P);
+      P^:=BaseTable[l mod Base];
+      l:=l div Base;
+      Inc(i);
+    until l=0;
+    while i<Count do begin
+      Dec(P);
+      P^:='0';
+      Inc(i);
+    end;
+    BaseStr:=StrPas(P);
+  end else BaseStr:='';
+end;
+
+{$asmmode intel}
+procedure WritePort(Port: Word; Value: Byte);
+begin
+  asm
+    mov dx,Port
+    mov al,Value
+    out dx,al
+  end ['EAX','EDX'];
+end;
+
+function ReadPort(Port: Word): Byte;
+var
+  Value: Byte;
+begin
+  asm
+    mov dx,Port
+    in  al,dx
+  end ['EAX','EDX'];
+end;
+
+end.
